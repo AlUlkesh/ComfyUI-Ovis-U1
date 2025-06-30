@@ -210,3 +210,44 @@ def pipe_t2i(model, prompt, height, width, steps, cfg, seed=42):
     return images
 
 
+class LoadOvisU1Prompt:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "text": ("STRING", {
+                    "default": "What is it?",
+                    "multiline": True
+                }),
+            }
+        }
+
+    RETURN_TYPES = ("PROMPT",)
+    RETURN_NAMES = ("prompt",)
+    FUNCTION = "load_prompt"
+    CATEGORY = "Ovis-U1"
+
+    def load_prompt(self, text):
+        prompt = text
+        
+        return (prompt,)
+
+
+class LoadOvisU1Model:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model_path": ("STRING", {"default": "AIDC-AI/Ovis-U1-3B"}),
+            }
+        }
+
+    RETURN_TYPES = ("MODEL",)
+    RETURN_NAMES = ("model",)
+    FUNCTION = "load_model"
+    CATEGORY = "Ovis-U1"
+
+    def load_model(self, model_path):
+        model, loading_info = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=torch.bfloat16, output_loading_info=True, trust_remote_code=True)
+        
+        return (model,)
