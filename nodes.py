@@ -216,7 +216,7 @@ class LoadOvisU1Prompt:
         return {
             "required": {
                 "text": ("STRING", {
-                    "default": "What is it?",
+                    "default": "a cute cat",
                     "multiline": True
                 }),
             }
@@ -251,3 +251,34 @@ class LoadOvisU1Model:
         model, loading_info = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=torch.bfloat16, output_loading_info=True, trust_remote_code=True)
         
         return (model,)
+
+
+class TextToImage:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": ("MODEL",),
+                "prompt": ("PROMPT",),
+                "height": ("INT", {"default": 1024}),
+                "width": ("INT", {"default": 1024}),
+                "steps": ("INT", {"default": 50}),
+                "txt_cfg": ("FLOAT", {"default": 5}),
+                "device": (["cuda", "cpu"], {"default": "cuda"}),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("image",)
+    FUNCTION = "generate"
+    CATEGORY = "Ovis-U1"
+
+    def generate(self, model, prompt, qwen_model_path, height, width, steps, txt_cfg, device):
+        
+        model = model.eval().to(device)
+        model = model.to(torch.bfloat16)
+        
+        image = pipe_t2i(model, prompt, height, width, steps, txt_cfg)[0]
+        
+        return (image,)
+
