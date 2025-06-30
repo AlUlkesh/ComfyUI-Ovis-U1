@@ -45,7 +45,7 @@ def pipe_txt_gen(model, pil_image, prompt):
           use_cache=True,
       )
     prompt = "<image>\n" + prompt
-    input_ids, pixel_values, attention_mask, grid_thws = build_inputs(model, text_tokenizer, visual_tokenizer, prompt, pil_image)
+    input_ids, pixel_values, attention_mask, grid_thws = build_inputs_img_to_txt(model, text_tokenizer, visual_tokenizer, prompt, pil_image)
     with torch.inference_mode():
         output_ids = model.generate(input_ids, pixel_values=pixel_values, attention_mask=attention_mask, grid_thws=grid_thws, **gen_kwargs)[0]
         gen_text = text_tokenizer.decode(output_ids, skip_special_tokens=True)
@@ -120,17 +120,17 @@ def pipe_img_edit(model, input_img, prompt, steps, txt_cfg, img_cfg, seed=42):
       )
     uncond_image = load_blank_image(width, height)
     uncond_prompt = "<image>\nGenerate an image."
-    input_ids, pixel_values, attention_mask, grid_thws, _ = build_inputs(model, text_tokenizer, visual_tokenizer, uncond_prompt, uncond_image, width, height)
+    input_ids, pixel_values, attention_mask, grid_thws, _ = build_inputs_img_edit(model, text_tokenizer, visual_tokenizer, uncond_prompt, uncond_image, width, height)
     with torch.inference_mode():
         no_both_cond = model.generate_condition(input_ids, pixel_values=pixel_values, attention_mask=attention_mask, grid_thws=grid_thws, **gen_kwargs)
 
     input_img = input_img.resize((width, height))
     prompt = "<image>\n" + prompt.strip()
     with torch.inference_mode():
-        input_ids, pixel_values, attention_mask, grid_thws, _ = build_inputs(model, text_tokenizer, visual_tokenizer, uncond_prompt, input_img, width, height)
+        input_ids, pixel_values, attention_mask, grid_thws, _ = build_inputs_img_edit(model, text_tokenizer, visual_tokenizer, uncond_prompt, input_img, width, height)
         no_txt_cond = model.generate_condition(input_ids, pixel_values=pixel_values, attention_mask=attention_mask, grid_thws=grid_thws, **gen_kwargs) 
 
-    input_ids, pixel_values, attention_mask, grid_thws, vae_pixel_values = build_inputs(model, text_tokenizer, visual_tokenizer, prompt, input_img, width, height)
+    input_ids, pixel_values, attention_mask, grid_thws, vae_pixel_values = build_inputs_img_edit(model, text_tokenizer, visual_tokenizer, prompt, input_img, width, height)
     with torch.inference_mode():
         cond = model.generate_condition(input_ids, pixel_values=pixel_values, attention_mask=attention_mask, grid_thws=grid_thws, **gen_kwargs)
         cond["vae_pixel_values"] = vae_pixel_values
@@ -197,12 +197,12 @@ def pipe_t2i(model, prompt, height, width, steps, cfg, seed=42):
       )
     uncond_image = load_blank_image(width, height)
     uncond_prompt = "<image>\nGenerate an image."
-    input_ids, pixel_values, attention_mask, grid_thws, _ = build_inputs(model, text_tokenizer, visual_tokenizer, uncond_prompt, uncond_image, width, height)
+    input_ids, pixel_values, attention_mask, grid_thws, _ = build_inputs_txt_to_img(model, text_tokenizer, visual_tokenizer, uncond_prompt, uncond_image, width, height)
     with torch.inference_mode():
         no_both_cond = model.generate_condition(input_ids, pixel_values=pixel_values, attention_mask=attention_mask, grid_thws=grid_thws, **gen_kwargs)
     prompt = "<image>\nDescribe the image by detailing the color, shape, size, texture, quantity, text, and spatial relationships of the objects:" + prompt
     no_txt_cond = None
-    input_ids, pixel_values, attention_mask, grid_thws, vae_pixel_values = build_inputs(model, text_tokenizer, visual_tokenizer, prompt, uncond_image, width, height)
+    input_ids, pixel_values, attention_mask, grid_thws, vae_pixel_values = build_inputs_txt_to_img(model, text_tokenizer, visual_tokenizer, prompt, uncond_image, width, height)
     with torch.inference_mode():
         cond = model.generate_condition(input_ids, pixel_values=pixel_values, attention_mask=attention_mask, grid_thws=grid_thws, **gen_kwargs)
         cond["vae_pixel_values"] = vae_pixel_values
@@ -282,3 +282,23 @@ class TextToImage:
         
         return (image,)
 
+
+class SaveOvisU1Image:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image_path": ("STRING", {"default": "t2i.png"}),
+                "image": ("IMAGE",),
+            }
+        }
+
+    RETURN_TYPES = ()
+    RETURN_NAMES = ()
+    FUNCTION = "save"
+    CATEGORY = "Ovis-U1"
+
+    def save(self, image_path, image):
+        image.save(image_path)
+        
+        return ()
