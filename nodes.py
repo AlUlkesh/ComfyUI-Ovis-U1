@@ -335,6 +335,35 @@ class ImageEdit:
         return (image,)
 
 
+class ImageToText:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": ("MODEL",),
+                "image_path": ("IMAGE",),
+                "prompt": ("PROMPT",),
+                "device": (["cuda", "cpu"], {"default": "cuda"}),
+            }
+        }
+
+    RETURN_TYPES = ("TEXT",)
+    RETURN_NAMES = ("text",)
+    FUNCTION = "generate"
+    CATEGORY = "Ovis-U1"
+
+    def generate(self, model, image_path, prompt, device):
+         
+        model = model.eval().to(device)
+        model = model.to(torch.bfloat16)
+        
+        pil_img = Image.open(image_path).convert('RGB')
+        
+        gen_txt = pipe_txt_gen(model, pil_img, prompt)
+        
+        return (gen_txt,)
+
+
 class SaveOvisU1Image:
     @classmethod
     def INPUT_TYPES(cls):
