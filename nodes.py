@@ -233,6 +233,26 @@ class LoadOvisU1Prompt:
         return (prompt,)
 
 
+class LoadOvisU1Image:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("STRING", {"default": "cat.png"}),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("image_path",)
+    FUNCTION = "load_image"
+    CATEGORY = "Ovis-U1"
+
+    def load_image(self, image):
+        image_path = image
+        
+        return (image_path,)
+
+
 class LoadOvisU1Model:
     @classmethod
     def INPUT_TYPES(cls):
@@ -273,12 +293,44 @@ class TextToImage:
     FUNCTION = "generate"
     CATEGORY = "Ovis-U1"
 
-    def generate(self, model, prompt, qwen_model_path, height, width, steps, txt_cfg, device):
+    def generate(self, model, prompt, height, width, steps, txt_cfg, device):
         
         model = model.eval().to(device)
         model = model.to(torch.bfloat16)
         
         image = pipe_t2i(model, prompt, height, width, steps, txt_cfg)[0]
+        
+        return (image,)
+
+
+class ImageEdit:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": ("MODEL",),
+                "image_path": ("IMAGE",),
+                "prompt": ("PROMPT",),
+                "steps": ("INT", {"default": 50}),
+                "img_cfg": ("FLOAT", {"default": 1.5}),
+                "txt_cfg": ("FLOAT", {"default": 6}),
+                "device": (["cuda", "cpu"], {"default": "cuda"}),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("image",)
+    FUNCTION = "generate"
+    CATEGORY = "Ovis-U1"
+
+    def generate(self, model, image_path, prompt, steps, img_cfg, txt_cfg, device):
+         
+        model = model.eval().to(device)
+        model = model.to(torch.bfloat16)
+        
+        pil_img = Image.open(image_path).convert('RGB')
+        
+        image = pipe_img_edit(model, pil_img, prompt, steps, txt_cfg, img_cfg)[0]
         
         return (image,)
 
