@@ -4,6 +4,16 @@ ComfyUI-Ovis-U1 is now available in ComfyUI, [Ovis-U1](https://github.com/AIDC-A
 
 
 
+## Workflows
+
+### Text to Image
+[![Text to Image](workflows/t2i.jpg)](workflows/Ovis-U1_t2i.json)
+### Edit
+[![Edit](workflows/edit.jpg)](workflows/Ovis-U1_edit.json)
+ ### Image to Text
+[![Image to Text](workflows/i2t.jpg)](workflows/Ovis-U1_i2t.json)
+
+
 ## Installation
 
 1. Make sure you have ComfyUI installed
@@ -17,14 +27,7 @@ git clone https://github.com/Yuan-ManX/ComfyUI-Ovis-U1.git
 3. Install dependencies:
 ```
 cd ComfyUI-Ovis-U1
-
-# Create conda environment
-conda create -n ovis-u1 python=3.10 -y
-conda activate ovis-u1
-
-# Install dependencies
 pip install -r requirements.txt
-pip install -e .
 ```
 
 

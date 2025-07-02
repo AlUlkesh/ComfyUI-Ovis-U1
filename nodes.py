@@ -34,15 +34,15 @@ def pipe_txt_gen(model, pil_image, prompt):
     text_tokenizer = model.get_text_tokenizer()
     visual_tokenizer = model.get_visual_tokenizer()
     gen_kwargs = dict(
-          max_new_tokens=4096,
+          max_new_tokens=2048,
           do_sample=False,
           top_p=None,
           top_k=None,
-          temperature=None,
+          temperature=1.0,
           repetition_penalty=None,
           eos_token_id=text_tokenizer.eos_token_id,
           pad_token_id=text_tokenizer.pad_token_id,
-          use_cache=True,
+          use_cache=False,
       )
     prompt = "<image>\n" + prompt
     input_ids, pixel_values, attention_mask, grid_thws = build_inputs_img_to_txt(model, text_tokenizer, visual_tokenizer, prompt, pil_image)
@@ -232,27 +232,6 @@ class LoadOvisU1Prompt:
         
         return (prompt,)
 
-
-class LoadOvisU1Image:
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "image": ("STRING", {"default": "cat.png"}),
-            }
-        }
-
-    RETURN_TYPES = ("IMAGE",)
-    RETURN_NAMES = ("image_path",)
-    FUNCTION = "load_image"
-    CATEGORY = "Ovis-U1"
-
-    def load_image(self, image):
-        image_path = image
-        
-        return (image_path,)
-
-
 class LoadOvisU1Model:
     @classmethod
     def INPUT_TYPES(cls):
@@ -272,8 +251,7 @@ class LoadOvisU1Model:
         
         return (model,)
 
-
-class TextToImage:
+class OvisU1TextToImage:
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -292,24 +270,39 @@ class TextToImage:
     RETURN_NAMES = ("image",)
     FUNCTION = "generate"
     CATEGORY = "Ovis-U1"
+    OUTPUT_NODE = True
 
     def generate(self, model, prompt, height, width, steps, txt_cfg, device):
         
         model = model.eval().to(device)
         model = model.to(torch.bfloat16)
         
-        image = pipe_t2i(model, prompt, height, width, steps, txt_cfg)[0]
+        images = pipe_t2i(model, prompt, height, width, steps, txt_cfg)
+        
+        image = images[0]
+        
+        if isinstance(image, Image.Image):
+            if image.mode == 'L':
+                image = image.convert('RGB')
+            image = np.array(image).astype(np.float32) / 255.0
+        
+        if isinstance(image, np.ndarray):
+            if image.ndim == 2:
+                image = np.stack([image, image, image], axis=2)
+            
+            image = torch.from_numpy(image)[None,]
+        else:
+            raise TypeError("The processed image is not a numpy array.")
         
         return (image,)
 
-
-class ImageEdit:
+class OvisU1ImageEdit:
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
                 "model": ("MODEL",),
-                "image_path": ("IMAGE",),
+                "image_in": ("IMAGE",),
                 "prompt": ("PROMPT",),
                 "steps": ("INT", {"default": 50}),
                 "img_cfg": ("FLOAT", {"default": 1.5}),
@@ -322,26 +315,35 @@ class ImageEdit:
     RETURN_NAMES = ("image",)
     FUNCTION = "generate"
     CATEGORY = "Ovis-U1"
+    OUTPUT_NODE = True
 
-    def generate(self, model, image_path, prompt, steps, img_cfg, txt_cfg, device):
+    def generate(self, model, image_in, prompt, steps, img_cfg, txt_cfg, device):
          
         model = model.eval().to(device)
         model = model.to(torch.bfloat16)
         
-        pil_img = Image.open(image_path).convert('RGB')
+        i = 255. * image_in[0].cpu().numpy()
+        pil_img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
+        pil_img = pil_img.convert('RGB')
         
         image = pipe_img_edit(model, pil_img, prompt, steps, txt_cfg, img_cfg)[0]
+        if isinstance(image, Image.Image):
+            image = np.array(image).astype(np.float32) / 255.0
         
+        if isinstance(image, np.ndarray):
+            image = torch.from_numpy(image)[None,]
+        else:
+            raise TypeError("The processed image is not a numpy array.")
+            
         return (image,)
 
-
-class ImageToText:
+class OvisU1ImageToText:
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
                 "model": ("MODEL",),
-                "image_path": ("IMAGE",),
+                "image_in": ("IMAGE",),
                 "prompt": ("PROMPT",),
                 "device": (["cuda", "cpu"], {"default": "cuda"}),
             }
@@ -351,35 +353,13 @@ class ImageToText:
     RETURN_NAMES = ("text",)
     FUNCTION = "generate"
     CATEGORY = "Ovis-U1"
+    OUTPUT_NODE = True
 
-    def generate(self, model, image_path, prompt, device):
-         
+    def generate(self, model, image_in, prompt, device):
         model = model.eval().to(device)
         model = model.to(torch.bfloat16)
-        
-        pil_img = Image.open(image_path).convert('RGB')
-        
+        i = 255. * image_in[0].cpu().numpy()
+        pil_img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
+        pil_img = pil_img.convert('RGB')
         gen_txt = pipe_txt_gen(model, pil_img, prompt)
-        
         return (gen_txt,)
-
-
-class SaveOvisU1Image:
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "image_path": ("STRING", {"default": "t2i.png"}),
-                "image": ("IMAGE",),
-            }
-        }
-
-    RETURN_TYPES = ()
-    RETURN_NAMES = ()
-    FUNCTION = "save"
-    CATEGORY = "Ovis-U1"
-
-    def save(self, image_path, image):
-        image.save(image_path)
-        
-        return ()
